@@ -16,6 +16,17 @@ contract eReais is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
 
     mapping(address => bool) private _isBlacklisted;
 
+    // Events
+    event ContractPaused();
+    event ContractUnpaused();
+    event TokensIssued(address indexed to, uint256 amount);
+    event TokensRedeemed(address indexed from, uint256 amount);
+    event AddressBlacklisted(address indexed _address, bool _flag);
+    event BlackFundsDestroyed(
+        address indexed _blacklistAddress,
+        uint256 amount
+    );
+
     constructor(
         address defaultAdmin,
         address pauser,
@@ -34,19 +45,23 @@ contract eReais is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
 
     function pause() public onlyRole(PAUSER_ROLE) {
         _pause();
+        emit ContractPaused();
     }
 
     function unpause() public onlyRole(PAUSER_ROLE) {
         _unpause();
+        emit ContractUnpaused();
     }
 
     function issue(address to, uint256 amount) public onlyRole(MINTER_ROLE) {
         require(!_isBlacklisted[to], "Recipient is blacklisted");
         _mint(to, amount);
+        emit TokensIssued(to, amount);
     }
 
     function redeem(uint256 amount) public onlyRole(BURNER_ROLE) {
         _burn(_msgSender(), amount);
+        emit TokensRedeemed(_msgSender(), amount);
     }
 
     function isBlacklisted(address _address) public view returns (bool) {
@@ -58,17 +73,7 @@ contract eReais is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
         bool _flag
     ) public onlyRole(COMPLIANCE_ROLE) {
         _isBlacklisted[_address] = _flag;
-    }
-
-    function destroyBlackFunds(
-        address _blacklistAddress
-    ) public onlyRole(COMPLIANCE_ROLE) {
-        require(
-            _isBlacklisted[_blacklistAddress],
-            "Address is not blacklisted"
-        );
-        uint256 dirtyFunds = balanceOf(_blacklistAddress);
-        _burn(_blacklistAddress, dirtyFunds);
+        emit AddressBlacklisted(_address, _flag);
     }
 
     // The following functions are overrides required by Solidity.
@@ -77,6 +82,8 @@ contract eReais is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
         address to,
         uint256 value
     ) internal override(ERC20, ERC20Pausable) {
+        require(!_isBlacklisted[from], "Sender is blacklisted");
+        require(!_isBlacklisted[to], "Recipient is blacklisted");
         super._update(from, to, value);
     }
 }

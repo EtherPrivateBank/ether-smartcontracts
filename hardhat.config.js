@@ -1,5 +1,5 @@
 // hardhat.config.js
-
+require("@nomicfoundation/hardhat-foundry");
 require("@nomicfoundation/hardhat-toolbox");
 require("@nomicfoundation/hardhat-ignition-ethers");
 require("@nomiclabs/hardhat-ethers");
@@ -9,13 +9,24 @@ require("@nomicfoundation/hardhat-verify");
 const PRIVATE_KEY = vars.get("PRIVATE_KEY");
 const POLYGON_RPC_URL = vars.get("POLYGON_RPC_URL");
 const POLYGONSCAN_API_KEY = vars.get("POLYGONSCAN_API_KEY");
+const ETHERPRIVATEBANK_RPC_URL = vars.get("ETHERPRIVATEBANK_RPC_URL");
+const PRIVATE_KEY_ETHER = vars.get("PRIVATE_KEY_ETHER");
+const ETHERPRIVATEBANK_CHAIN_ID = parseInt(vars.get("ETHERPRIVATEBANK_CHAIN_ID"), 10);
 
 module.exports = {
   networks: {
+    hardhat: {
+    },
     polygonMumbai: {
       url: POLYGON_RPC_URL,
       accounts: [PRIVATE_KEY],
       chainId: 80001,
+    },
+    etherPrivateBank: {
+      url: ETHERPRIVATEBANK_RPC_URL,
+      accounts: [PRIVATE_KEY_ETHER],
+      gasPrice: 0,
+      chainId: 188,
     },
   },
   solidity: {
@@ -23,7 +34,7 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 200
+        runs: 1000,
       }
     }
   },
