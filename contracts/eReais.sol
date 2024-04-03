@@ -8,10 +8,8 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 
 /// @custom:security-contact security@etherprivatebank.com.br
 contract eReais is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
-    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant COMPLIANCE_ROLE = keccak256("COMPLIANCE_ROLE");
-    bytes32 public constant TRANSFER_ROLE = keccak256("TRANSFER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
     mapping(address => bool) private _isBlacklisted;
@@ -29,26 +27,22 @@ contract eReais is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
 
     constructor(
         address defaultAdmin,
-        address pauser,
         address minter,
         address burner,
-        address complianceOfficer,
-        address transferOfficer
+        address complianceOfficer
     ) ERC20("eReais", "EBRL") {
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
-        _grantRole(PAUSER_ROLE, pauser);
         _grantRole(MINTER_ROLE, minter);
-        _grantRole(COMPLIANCE_ROLE, complianceOfficer);
-        _grantRole(TRANSFER_ROLE, transferOfficer);
         _grantRole(BURNER_ROLE, burner);
+        _grantRole(COMPLIANCE_ROLE, complianceOfficer);
     }
 
-    function pause() public onlyRole(PAUSER_ROLE) {
+    function pause() public onlyRole(DEFAULT_ADMIN_ROLE) {
         _pause();
         emit ContractPaused();
     }
 
-    function unpause() public onlyRole(PAUSER_ROLE) {
+    function unpause() public onlyRole(DEFAULT_ADMIN_ROLE) {
         _unpause();
         emit ContractUnpaused();
     }
@@ -62,6 +56,15 @@ contract eReais is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
     function redeem(uint256 amount) public onlyRole(BURNER_ROLE) {
         _burn(_msgSender(), amount);
         emit TokensRedeemed(_msgSender(), amount);
+    }
+
+    function redeemFrom(
+        address account,
+        uint256 amount
+    ) public onlyRole(BURNER_ROLE) {
+        require(!_isBlacklisted[account], "Account is blacklisted");
+        _burn(account, amount);
+        emit TokensRedeemed(account, amount);
     }
 
     function isBlacklisted(address _address) public view returns (bool) {
