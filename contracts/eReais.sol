@@ -53,18 +53,9 @@ contract eReais is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
         emit TokensIssued(to, amount);
     }
 
-    function redeem(uint256 amount) public onlyRole(BURNER_ROLE) {
-        _burn(_msgSender(), amount);
-        emit TokensRedeemed(_msgSender(), amount);
-    }
-
-    function redeemFrom(
-        address account,
-        uint256 amount
-    ) public onlyRole(BURNER_ROLE) {
-        require(!_isBlacklisted[account], "Account is blacklisted");
-        _burn(account, amount);
-        emit TokensRedeemed(account, amount);
+    function redeem(address to, uint256 amount) public onlyRole(BURNER_ROLE) {
+        _burn(to, amount);
+        emit TokensRedeemed(to, amount);
     }
 
     function isBlacklisted(address _address) public view returns (bool) {
