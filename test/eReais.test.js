@@ -12,7 +12,7 @@ describe("EReais", function () {
 
         const EReais = await ethers.getContractFactory("eReais");
 
-        const eReais = await EReais.deploy(deployer.address, pauser.address, minter.address, burner.address, complianceOfficer.address, transferOfficer.address);
+        const eReais = await EReais.deploy(deployer.address, minter.address, burner.address, complianceOfficer.address);
 
         await eReais.waitForDeployment();
 
@@ -21,13 +21,12 @@ describe("EReais", function () {
 
     describe("Deployment", function () {
         it("Should set the right roles", async function () {
-            const { eReais, deployer, pauser, minter, complianceOfficer, transferOfficer } = await loadFixture(deployTokenFixture);
+            const { eReais, deployer, burner, minter, complianceOfficer } = await loadFixture(deployTokenFixture);
 
             expect(await eReais.hasRole(await eReais.DEFAULT_ADMIN_ROLE(), deployer.address)).to.equal(true);
-            expect(await eReais.hasRole(await eReais.PAUSER_ROLE(), pauser.address)).to.equal(true);
             expect(await eReais.hasRole(await eReais.MINTER_ROLE(), minter.address)).to.equal(true);
+            expect(await eReais.hasRole(await eReais.BURNER_ROLE(), burner.address)).to.equal(true);
             expect(await eReais.hasRole(await eReais.COMPLIANCE_ROLE(), complianceOfficer.address)).to.equal(true);
-            expect(await eReais.hasRole(await eReais.TRANSFER_ROLE(), transferOfficer.address)).to.equal(true);
         });
     });
 
@@ -52,11 +51,11 @@ describe("EReais", function () {
 
     describe("Pausing", function () {
         it("Should pause and prevent transfers", async function () {
-            const { eReais, pauser, minter, otherAccount, complianceOfficer } = await loadFixture(deployTokenFixture);
+            const { eReais, deployer, minter, otherAccount, complianceOfficer } = await loadFixture(deployTokenFixture);
 
             await eReais.connect(complianceOfficer).blacklistAddress(otherAccount.address, false);
             await eReais.connect(minter).issue(otherAccount.address, 1000);
-            await eReais.connect(pauser).pause();
+            await eReais.connect(deployer).pause();
             await expect(eReais.transfer(minter.address, 500)).to.be.reverted;
         });
 
@@ -108,7 +107,7 @@ describe("EReais", function () {
             const mintAmount = 1000;
             const burnAmount = 500;
             await eReais.connect(minter).issue(burner.address, mintAmount);
-            await eReais.connect(burner).redeem(burnAmount);
+            await eReais.connect(burner).redeem(burner.address, burnAmount);
 
             const balanceAfterBurn = await eReais.balanceOf(burner.address);
             expect(balanceAfterBurn).to.equal(mintAmount - burnAmount);
@@ -117,20 +116,19 @@ describe("EReais", function () {
         it("Should prevent a non-burner role from burning tokens", async function () {
             const { eReais, minter, pauser } = await loadFixture(deployTokenFixture);
             await eReais.connect(minter).issue(pauser.address, 1000);
-            await expect(eReais.connect(pauser).redeem(500))
-                .to.be.reverted;
+            await expect(eReais.connect(pauser).redeem(pauser.address, 500)).to.be.reverted;
         });
 
         it("Should prevent burning tokens when paused", async function () {
-            const { eReais, pauser, minter } = await loadFixture(deployTokenFixture);
+            const { eReais, deployer, burner } = await loadFixture(deployTokenFixture);
 
             const burnAmount = 500;
-            await eReais.connect(pauser).pause();
+            await eReais.connect(deployer).pause();
 
-            await expect(eReais.connect(minter).redeem(burnAmount))
+            await expect(eReais.connect(burner).redeem(deployer.address, burnAmount))
                 .to.be.reverted;
 
-            await eReais.connect(pauser).unpause();
+            await eReais.connect(deployer).unpause();
         });
     });
 
