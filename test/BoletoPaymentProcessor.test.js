@@ -29,17 +29,19 @@ describe("BoletoPaymentProcessor", function () {
 
     describe("Boleto management", function () {
         it("Should register a boleto correctly", async function () {
-            const { boletoPaymentProcessor, owner } = await loadFixture(deployBoletoPaymentProcessorFixture);
+            const { boletoPaymentProcessor, owner, customer } = await loadFixture(deployBoletoPaymentProcessorFixture);
 
             const boletoId = "123456789";
             const boletoAmount = ethers.parseEther("100");
+            const boletoFee = ethers.parseEther("2");
             const boletoName = "Customer Name";
             const boletoTaxId = "000.000.000-00";
-            await boletoPaymentProcessor.connect(owner).registerBoleto(boletoId, boletoAmount, boletoName, boletoTaxId);
+            await boletoPaymentProcessor.connect(owner).registerBoleto(boletoId, boletoAmount, boletoFee, boletoName, boletoTaxId, customer.address);
 
             const boletoDetails = await boletoPaymentProcessor.getBoletoDetails(boletoId);
             expect(boletoDetails.id).to.equal(boletoId);
             expect(boletoDetails.amount).to.equal(boletoAmount);
+            expect(boletoDetails.fee).to.equal(boletoFee);
             expect(boletoDetails.name).to.equal(boletoName);
             expect(boletoDetails.taxId).to.equal(boletoTaxId);
             expect(boletoDetails.status).to.equal(0);
@@ -53,8 +55,8 @@ describe("BoletoPaymentProcessor", function () {
             const fee = ethers.parseEther("2");
             const netAmount = boletoAmount - fee;
 
-            await expect(boletoPaymentProcessor.connect(owner).registerBoleto(boletoId, boletoAmount, "Customer Name", "111.111.111-11"));
-            const processTx = await boletoPaymentProcessor.connect(minter).processBoletoPayment(boletoId, customer.address, fee);
+            await expect(boletoPaymentProcessor.connect(owner).registerBoleto(boletoId, boletoAmount,fee, "Customer Name", "111.111.111-11", customer.address));
+            const processTx = await boletoPaymentProcessor.connect(minter).processBoletoPayment(boletoId);
             await processTx.wait();
 
             const customerBalance = await eReais.balanceOf(customer.address);

@@ -16,18 +16,21 @@ contract BoletoPaymentProcessor is AccessControl {
     struct Boleto {
         string id;
         uint256 amount;
+        uint256 fee;
         string name;
         string taxId;
         BoletoStatus status;
+        address customerAddress;
     }
 
     mapping(string => Boleto) private boletos;
 
-    event BoletoRegistered(string id, uint256 amount);
+    event BoletoRegistered(string id, uint256 amount, uint256 fee, address customerAddress);
     event BoletoStatusUpdatedAndMinted(
         string id,
         uint256 netAmount,
-        uint256 fee
+        uint256 fee,
+        address customerAddress
     );
 
     constructor(
@@ -47,23 +50,25 @@ contract BoletoPaymentProcessor is AccessControl {
     function registerBoleto(
         string memory _id,
         uint256 _amount,
+        uint256 _fee,
         string memory _name,
-        string memory _taxId
+        string memory _taxId,
+        address _customerAddress
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         boletos[_id] = Boleto(
             _id,
             _amount,
+            _fee,
             _name,
             _taxId,
-            BoletoStatus.Created
+            BoletoStatus.Created,
+            _customerAddress
         );
-        emit BoletoRegistered(_id, _amount);
+        emit BoletoRegistered(_id, _amount, _fee, _customerAddress);
     }
 
     function processBoletoPayment(
-        string memory _id,
-        address customer,
-        uint256 fee
+        string memory _id
     ) external onlyRole(eBRLContract.MINTER_ROLE()) {
         Boleto storage boleto = boletos[_id];
         require(
@@ -71,12 +76,12 @@ contract BoletoPaymentProcessor is AccessControl {
             "Boleto must be in Created status"
         );
 
-        uint256 netAmount = boleto.amount - fee;
-        eBRLContract.issue(customer, netAmount);
-        eBRLContract.issue(treasuryWallet, fee);
+        uint256 netAmount = boleto.amount - boleto.fee;
+        eBRLContract.issue(boleto.customerAddress, netAmount);
+        eBRLContract.issue(treasuryWallet, boleto.fee);
 
         boleto.status = BoletoStatus.Paid;
-        emit BoletoStatusUpdatedAndMinted(_id, netAmount, fee);
+        emit BoletoStatusUpdatedAndMinted(_id, netAmount, boleto.fee, boleto.customerAddress);
     }
 
     function getBoletoDetails(
