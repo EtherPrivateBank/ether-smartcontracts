@@ -54,6 +54,7 @@ contract eReais is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
     }
 
     function redeem(address to, uint256 amount) public onlyRole(BURNER_ROLE) {
+        require(balanceOf(to) >= amount, "Insufficient balance to redeem");
         _burn(to, amount);
         emit TokensRedeemed(to, amount);
     }
