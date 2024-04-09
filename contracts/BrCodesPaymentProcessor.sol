@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "./eReais.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
-contract PixPaymentProcessor is AccessControl {
+contract BrCodesPaymentProcessor is AccessControl {
     eReais public eBRLContract;
     address public treasuryWallet;
 
@@ -32,6 +32,9 @@ contract PixPaymentProcessor is AccessControl {
         address customerAddress,
         string pictureUrl
     );
+
+    event PixPaid(string id, uint256 amount, uint256 fee, address payerAddress);
+
     event PixStatusUpdatedAndMinted(
         string id,
         uint256 netAmount,
@@ -61,6 +64,7 @@ contract PixPaymentProcessor is AccessControl {
         address _customerAddress,
         string memory _pictureUrl
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_amount > _fee, "Amount must be greater than fee");
         pixTransactions[_id] = Pix(
             _id,
             _amount,
@@ -95,9 +99,30 @@ contract PixPaymentProcessor is AccessControl {
         );
     }
 
-    function getPixDetails(
-        string memory _id
-    ) public view returns (Pix memory) {
+    function payPix(
+        string memory _id,
+        address payerAddress,
+        uint256 fee
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        Pix storage pix = pixTransactions[_id];
+        require(
+            pix.status == PixStatus.Created,
+            "Pix must be in Created status"
+        );
+        require(
+            eBRLContract.balanceOf(payerAddress) >= pix.amount,
+            "Insufficient balance to pay Pix"
+        );
+
+        uint256 netAmount = pix.amount - fee;
+        eBRLContract.redeem(payerAddress, netAmount);
+        eBRLContract.transferFrom(payerAddress, treasuryWallet, fee);
+
+        pix.status = PixStatus.Paid;
+        emit PixPaid(_id, netAmount, fee, payerAddress);
+    }
+
+    function getPixDetails(string memory _id) public view returns (Pix memory) {
         return pixTransactions[_id];
     }
 }

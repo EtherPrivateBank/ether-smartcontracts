@@ -65,7 +65,33 @@ describe("BoletoPaymentProcessor", function () {
             expect(treasuryBalance).to.equal(fee);
 
             const boletoDetails = await boletoPaymentProcessor.getBoletoDetails(boletoId);
-            expect(boletoDetails.status).to.equal(1);
+            expect(boletoDetails.status).to.equal(2);
+        });
+    });
+
+    describe("Boleto payment", function () {
+        it("Should allow a user to pay a Boleto and handle fee correctly", async function () {
+            const { eReais, boletoPaymentProcessor, owner, minter, treasuryWallet, customer } = await loadFixture(deployBoletoPaymentProcessorFixture);
+    
+            const boletoId = "boleto123";
+            const boletoAmount = ethers.parseEther("100");
+            const boletoFee = ethers.parseEther("2");
+            await boletoPaymentProcessor.connect(owner).registerBoleto(boletoId, boletoAmount, boletoFee, "Boleto Name", "000.000.000-00", customer.address);
+    
+            await eReais.connect(minter).issue(customer.address, boletoAmount);
+    
+            await eReais.connect(customer).approve(boletoPaymentProcessor.target, boletoAmount);
+    
+            await boletoPaymentProcessor.connect(customer).payBoleto(boletoId, customer.address, boletoFee);
+    
+            const treasuryBalance = await eReais.balanceOf(treasuryWallet.address);
+            expect(treasuryBalance).to.equal(boletoFee);
+    
+            const customerFinalBalance = await eReais.balanceOf(customer.address);
+            expect(customerFinalBalance).to.equal("0");
+    
+            const boletoDetails = await boletoPaymentProcessor.getBoletoDetails(boletoId);
+            expect(boletoDetails.status).to.equal(2);
         });
     });
 });

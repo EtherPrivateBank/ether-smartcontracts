@@ -10,7 +10,10 @@ contract BoletoPaymentProcessor is AccessControl {
 
     enum BoletoStatus {
         Created,
-        Paid
+        Processing,
+        Paid,
+        Canceled,
+        Failed
     }
 
     struct Boleto {
@@ -25,13 +28,28 @@ contract BoletoPaymentProcessor is AccessControl {
 
     mapping(string => Boleto) private boletos;
 
-    event BoletoRegistered(string id, uint256 amount, uint256 fee, address customerAddress);
+    event BoletoRegistered(
+        string id,
+        uint256 amount,
+        uint256 fee,
+        address customerAddress
+    );
+
+    event BoletoPaid(
+        string id,
+        uint256 amount,
+        uint256 fee,
+        address payerAddress
+    );
+
     event BoletoStatusUpdatedAndMinted(
         string id,
         uint256 netAmount,
         uint256 fee,
         address customerAddress
     );
+
+    event BoletoStatusUpdated(string id, BoletoStatus status);
 
     constructor(
         address eBRLAddress,
@@ -81,7 +99,36 @@ contract BoletoPaymentProcessor is AccessControl {
         eBRLContract.issue(treasuryWallet, boleto.fee);
 
         boleto.status = BoletoStatus.Paid;
-        emit BoletoStatusUpdatedAndMinted(_id, netAmount, boleto.fee, boleto.customerAddress);
+        emit BoletoStatusUpdatedAndMinted(
+            _id,
+            netAmount,
+            boleto.fee,
+            boleto.customerAddress
+        );
+    }
+
+    function payBoleto(
+        string memory _id,
+        address payerAddress,
+        uint256 fee
+    ) external {
+        Boleto storage boleto = boletos[_id];
+        require(
+            boleto.status == BoletoStatus.Created,
+            "Boleto must be in Created status"
+        );
+        require(
+            eBRLContract.balanceOf(payerAddress) >= boleto.amount,
+            "Insufficient balance to pay Boleto"
+        );
+
+        uint256 netAmount = boleto.amount - fee;
+        eBRLContract.burnFrom(payerAddress, netAmount);
+        eBRLContract.transferFrom(payerAddress, treasuryWallet, fee);
+
+        boleto.status = BoletoStatus.Paid;
+        emit BoletoPaid(_id, netAmount, fee, payerAddress);
+        emit BoletoStatusUpdated(_id, BoletoStatus.Paid);
     }
 
     function getBoletoDetails(
