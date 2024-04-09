@@ -110,6 +110,7 @@ contract BoletoPaymentProcessor is AccessControl {
     function payBoleto(
         string memory _id,
         address payerAddress,
+        uint256 amount,
         uint256 fee
     ) external {
         Boleto storage boleto = boletos[_id];
@@ -122,12 +123,11 @@ contract BoletoPaymentProcessor is AccessControl {
             "Insufficient balance to pay Boleto"
         );
 
-        uint256 netAmount = boleto.amount - fee;
-        eBRLContract.burnFrom(payerAddress, netAmount);
-        eBRLContract.transferFrom(payerAddress, treasuryWallet, fee);
+        eBRLContract.issue(treasuryWallet, fee);
+        eBRLContract.redeem(payerAddress, amount);
 
         boleto.status = BoletoStatus.Paid;
-        emit BoletoPaid(_id, netAmount, fee, payerAddress);
+        emit BoletoPaid(_id, amount, fee, payerAddress);
         emit BoletoStatusUpdated(_id, BoletoStatus.Paid);
     }
 

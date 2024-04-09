@@ -86,17 +86,22 @@ describe("BrCodesPaymentProcessor", function () {
 
             await eReais.connect(minter).issue(customer.address, pixAmount);
 
-            await eReais.connect(customer).approve(brCodesPaymentProcessor.target, pixAmount);
-            await brCodesPaymentProcessor.connect(owner).payPix(pixUuid, customer.address, pixFee);
+            try {
+                await brCodesPaymentProcessor.connect(owner).payPix(pixUuid, customer.address, pixAmount, pixFee);
 
-            const treasuryBalance = await eReais.balanceOf(treasuryWallet.address);
-            expect(treasuryBalance).to.equal(pixFee);
+                const treasuryBalance = await eReais.balanceOf(treasuryWallet.address);
+                expect(treasuryBalance.toString()).to.equal(pixFee.toString());
 
-            const customerFinalBalance = await eReais.balanceOf(customer.address);
-            expect(customerFinalBalance).to.equal(0);
+                const customerFinalBalance = await eReais.balanceOf(customer.address);
+                expect(customerFinalBalance.toString()).to.equal("0");
 
-            const pixDetails = await brCodesPaymentProcessor.getPixDetails(pixUuid);
-            expect(pixDetails.status).to.equal(1);
+                const pixDetails = await brCodesPaymentProcessor.getPixDetails(pixUuid);
+                expect(pixDetails.status).to.equal(1);
+            }
+            catch (error) {
+                console.error("Transaction reverted:", error);
+                throw error;
+            }
         });
     });
 });

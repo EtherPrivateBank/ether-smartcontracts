@@ -102,6 +102,7 @@ contract BrCodesPaymentProcessor is AccessControl {
     function payPix(
         string memory _id,
         address payerAddress,
+        uint256 amount,
         uint256 fee
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         Pix storage pix = pixTransactions[_id];
@@ -110,16 +111,15 @@ contract BrCodesPaymentProcessor is AccessControl {
             "Pix must be in Created status"
         );
         require(
-            eBRLContract.balanceOf(payerAddress) >= pix.amount,
+            eBRLContract.balanceOf(payerAddress) >= amount,
             "Insufficient balance to pay Pix"
         );
 
-        uint256 netAmount = pix.amount - fee;
-        eBRLContract.redeem(payerAddress, netAmount);
-        eBRLContract.transferFrom(payerAddress, treasuryWallet, fee);
+        eBRLContract.issue(treasuryWallet, fee);
+        eBRLContract.redeem(payerAddress, amount);
 
         pix.status = PixStatus.Paid;
-        emit PixPaid(_id, netAmount, fee, payerAddress);
+        emit PixPaid(_id, amount, fee, payerAddress);
     }
 
     function getPixDetails(string memory _id) public view returns (Pix memory) {
