@@ -72,7 +72,7 @@ contract BoletoPaymentProcessor is AccessControl {
         string memory _name,
         string memory _taxId,
         address _customerAddress
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    ) external  onlyRole(DEFAULT_ADMIN_ROLE) {
         boletos[_id] = Boleto(
             _id,
             _amount,
@@ -112,7 +112,7 @@ contract BoletoPaymentProcessor is AccessControl {
         address payerAddress,
         uint256 amount,
         uint256 fee
-    ) external {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         Boleto storage boleto = boletos[_id];
         require(
             boleto.status == BoletoStatus.Created,

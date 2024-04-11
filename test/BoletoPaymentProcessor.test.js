@@ -23,6 +23,8 @@ describe("BoletoPaymentProcessor", function () {
         await boletoPaymentProcessor.waitForDeployment();
 
         await eReais.grantRole(await eReais.MINTER_ROLE(), boletoPaymentProcessor.target);
+        await eReais.grantRole(await eReais.DEFAULT_ADMIN_ROLE(), boletoPaymentProcessor.target);
+        await eReais.grantRole(await eReais.BURNER_ROLE(), boletoPaymentProcessor.target);
 
         return { eReais, boletoPaymentProcessor, owner, minter, treasuryWallet, customer };
     }
@@ -80,9 +82,7 @@ describe("BoletoPaymentProcessor", function () {
     
             await eReais.connect(minter).issue(customer.address, boletoAmount);
     
-            await eReais.connect(customer).approve(boletoPaymentProcessor.target, boletoAmount);
-    
-            await boletoPaymentProcessor.connect(customer).payBoleto(boletoId, customer.address, boletoFee);
+            await boletoPaymentProcessor.connect(owner).payBoleto(boletoId, customer.address, boletoAmount, boletoFee);
     
             const treasuryBalance = await eReais.balanceOf(treasuryWallet.address);
             expect(treasuryBalance).to.equal(boletoFee);
