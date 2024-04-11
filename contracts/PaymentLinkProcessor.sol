@@ -33,7 +33,7 @@ contract PaymentLinkProcessor is AccessControl {
     event PaymentProcessed(string uuid, PaymentStatus status);
     event TokensMinted(string uuid, address indexed customer, uint256 amount);
 
-    constructor(address _eBRLAddress, address _treasuryWallet, address admin) {
+    constructor(address _eBRLAddress, address admin, address _treasuryWallet) {
         eBRLContract = eReais(_eBRLAddress);
         treasuryWallet = _treasuryWallet;
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
