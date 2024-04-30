@@ -33,26 +33,47 @@ contract PaymentLinkProcessor is AccessControl {
     event PaymentProcessed(string uuid, PaymentStatus status);
     event TokensMinted(string uuid, address indexed customer, uint256 amount);
 
+    mapping(uint256 => uint256) public installmentFees;
+
     constructor(address _eBRLAddress, address admin, address _treasuryWallet) {
         eBRLContract = eReais(_eBRLAddress);
         treasuryWallet = _treasuryWallet;
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
     }
 
+    function setInstallmentFee(
+        uint256 _installments,
+        uint256 _feePercentageBasisPoints
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(
+            _installments > 0 && _installments <= 21,
+            "Invalid number of installments"
+        );
+        installmentFees[_installments] = _feePercentageBasisPoints;
+    }
+
     function createPaymentLink(
         string memory _uuid,
         uint256 _amount,
-        uint256 _fee,
+        uint256 _installments,
         address _customer
     ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(
+            _installments > 0 && _installments <= 21,
+            "Invalid number of installments"
+        );
+        uint256 feePercentage = installmentFees[_installments];
+        uint256 fee = calculateInstallmentFee(_amount, feePercentage);
+
         paymentLinks[_uuid] = PaymentLink({
             uuid: _uuid,
             amount: _amount,
-            fee: _fee,
+            fee: fee,
             status: PaymentStatus.Pending,
             customerAddress: _customer
         });
-        emit PaymentLinkCreated(_uuid, _amount, _fee, _customer);
+
+        emit PaymentLinkCreated(_uuid, _amount, fee, _customer);
     }
 
     function processPayment(
@@ -66,10 +87,14 @@ contract PaymentLinkProcessor is AccessControl {
 
         if (_success) {
             PaymentLink storage link = paymentLinks[_uuid];
-            uint256 netAmount = link.amount - link.fee;
+            uint256 netAmount = link.amount;
+            if (link.fee > 0) {
+                netAmount = link.amount - link.fee;
+            }
             eBRLContract.issue(link.customerAddress, netAmount);
-            eBRLContract.issue(treasuryWallet, link.fee);
-
+            if (link.fee > 0) {
+                eBRLContract.issue(treasuryWallet, link.fee);
+            }
             link.status = PaymentStatus.Paid;
             emit TokensMinted(_uuid, link.customerAddress, netAmount);
         } else {
@@ -77,5 +102,12 @@ contract PaymentLinkProcessor is AccessControl {
         }
 
         emit PaymentProcessed(_uuid, paymentLinks[_uuid].status);
+    }
+
+    function calculateInstallmentFee(
+        uint256 _amount,
+        uint256 _feePercentageBasisPoints
+    ) public pure returns (uint256) {
+        return (_amount * _feePercentageBasisPoints) / 10000;
     }
 }
