@@ -17,23 +17,28 @@ contract PaymentLinkProcessor is AccessControl {
     struct PaymentLink {
         string uuid;
         uint256 amount;
-        uint256 fee;
+        uint256 interestRate;
+        uint256 spreadRate;
         PaymentStatus status;
         address customerAddress;
+        address beneficiary;
     }
 
     mapping(string => PaymentLink) public paymentLinks;
+    mapping(uint256 => uint256) public interestRates;
+    mapping(uint256 => uint256) public spreadRates;
 
     event PaymentLinkCreated(
         string uuid,
         uint256 amount,
-        uint256 fee,
-        address indexed customer
+        uint256 interestRate,
+        uint256 spreadRate,
+        address indexed customer,
+        address indexed beneficiary
     );
     event PaymentProcessed(string uuid, PaymentStatus status);
     event TokensMinted(string uuid, address indexed customer, uint256 amount);
-
-    mapping(uint256 => uint256) public installmentFees;
+    event DebugLog(string description, uint256 value);
 
     constructor(address _eBRLAddress, address admin, address _treasuryWallet) {
         eBRLContract = eReais(_eBRLAddress);
@@ -41,39 +46,52 @@ contract PaymentLinkProcessor is AccessControl {
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
     }
 
-    function setInstallmentFee(
-        uint256 _installments,
-        uint256 _feePercentageBasisPoints
+    function setInterestRate(
+        uint256 installments,
+        uint256 rate
     ) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(
-            _installments > 0 && _installments <= 21,
-            "Invalid number of installments"
-        );
-        installmentFees[_installments] = _feePercentageBasisPoints;
+        interestRates[installments] = rate;
+    }
+
+    function setSpreadRate(
+        uint256 installments,
+        uint256 rate
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        spreadRates[installments] = rate;
     }
 
     function createPaymentLink(
         string memory _uuid,
         uint256 _amount,
         uint256 _installments,
-        address _customer
+        address _customer,
+        address _beneficiary
     ) public onlyRole(DEFAULT_ADMIN_ROLE) {
         require(
             _installments > 0 && _installments <= 21,
             "Invalid number of installments"
         );
-        uint256 feePercentage = installmentFees[_installments];
-        uint256 fee = calculateInstallmentFee(_amount, feePercentage);
+        uint256 interestRate = interestRates[_installments];
+        uint256 spreadRate = spreadRates[_installments];
 
         paymentLinks[_uuid] = PaymentLink({
             uuid: _uuid,
             amount: _amount,
-            fee: fee,
+            interestRate: interestRate,
+            spreadRate: spreadRate,
             status: PaymentStatus.Pending,
-            customerAddress: _customer
+            customerAddress: _customer,
+            beneficiary: _beneficiary
         });
 
-        emit PaymentLinkCreated(_uuid, _amount, fee, _customer);
+        emit PaymentLinkCreated(
+            _uuid,
+            _amount,
+            interestRate,
+            spreadRate,
+            _customer,
+            _beneficiary
+        );
     }
 
     function processPayment(
@@ -87,16 +105,26 @@ contract PaymentLinkProcessor is AccessControl {
 
         if (_success) {
             PaymentLink storage link = paymentLinks[_uuid];
-            uint256 netAmount = link.amount;
-            if (link.fee > 0) {
-                netAmount = link.amount - link.fee;
-            }
+            uint256 interestAmount = calculateInstallmentFee(
+                link.amount,
+                link.interestRate
+            );
+            uint256 spreadAmount = calculateInstallmentFee(
+                link.amount,
+                link.spreadRate
+            );
+            uint256 treasuryAmount = (spreadAmount * 35) / 100;
+            uint256 beneficiaryAmount = spreadAmount - treasuryAmount;
+
+            uint256 netAmount = link.amount - interestAmount - spreadAmount;
             eBRLContract.issue(link.customerAddress, netAmount);
-            if (link.fee > 0) {
-                eBRLContract.issue(treasuryWallet, link.fee);
-            }
+            eBRLContract.issue(treasuryWallet, treasuryAmount);
+            eBRLContract.issue(link.beneficiary, beneficiaryAmount);
+
             link.status = PaymentStatus.Paid;
             emit TokensMinted(_uuid, link.customerAddress, netAmount);
+            emit DebugLog("Treasury Amount", treasuryAmount);
+            emit DebugLog("Beneficiary Amount", beneficiaryAmount);
         } else {
             paymentLinks[_uuid].status = PaymentStatus.Failed;
         }
@@ -106,8 +134,8 @@ contract PaymentLinkProcessor is AccessControl {
 
     function calculateInstallmentFee(
         uint256 _amount,
-        uint256 _feePercentageBasisPoints
+        uint256 _percentageBasisPoints
     ) public pure returns (uint256) {
-        return (_amount * _feePercentageBasisPoints) / 10000;
+        return (_amount * _percentageBasisPoints) / 10000;
     }
 }
