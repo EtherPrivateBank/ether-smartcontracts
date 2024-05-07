@@ -7,6 +7,7 @@ import "./eReais.sol";
 contract PaymentLinkProcessor is AccessControl {
     eReais public eBRLContract;
     address public treasuryWallet;
+    uint256 public treasurySplitRate;
 
     enum PaymentStatus {
         Pending,
@@ -38,11 +39,12 @@ contract PaymentLinkProcessor is AccessControl {
     );
     event PaymentProcessed(string uuid, PaymentStatus status);
     event TokensMinted(string uuid, address indexed customer, uint256 amount);
-    event DebugLog(string description, uint256 value);
 
-    constructor(address _eBRLAddress, address admin, address _treasuryWallet) {
+    constructor(address _eBRLAddress, address admin, address _treasuryWallet, uint256 _treasurySplitRate) {
+        require(_treasurySplitRate <= 100, "Treasury split rate must be between 0 and 100");
         eBRLContract = eReais(_eBRLAddress);
         treasuryWallet = _treasuryWallet;
+        treasurySplitRate = _treasurySplitRate;
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
     }
 
@@ -113,7 +115,7 @@ contract PaymentLinkProcessor is AccessControl {
                 link.amount,
                 link.spreadRate
             );
-            uint256 treasuryAmount = (spreadAmount * 35) / 100;
+            uint256 treasuryAmount = (spreadAmount * treasurySplitRate) / 100;
             uint256 beneficiaryAmount = spreadAmount - treasuryAmount;
 
             uint256 netAmount = link.amount - interestAmount - spreadAmount;
@@ -123,8 +125,6 @@ contract PaymentLinkProcessor is AccessControl {
 
             link.status = PaymentStatus.Paid;
             emit TokensMinted(_uuid, link.customerAddress, netAmount);
-            emit DebugLog("Treasury Amount", treasuryAmount);
-            emit DebugLog("Beneficiary Amount", beneficiaryAmount);
         } else {
             paymentLinks[_uuid].status = PaymentStatus.Failed;
         }

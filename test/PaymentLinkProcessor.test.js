@@ -10,8 +10,9 @@ describe("PaymentLinkProcessor", function () {
         const tokenContract = await eReais.deploy(admin.address, minter.address, admin.address, admin.address);
         await tokenContract.waitForDeployment();
 
+        const treasurySplitRate = 35;
         const PaymentLinkProcessor = await ethers.getContractFactory("PaymentLinkProcessor");
-        const paymentLinkProcessor = await PaymentLinkProcessor.deploy(tokenContract.target, admin.address, treasuryWallet.address);
+        const paymentLinkProcessor = await PaymentLinkProcessor.deploy(tokenContract.target, admin.address, treasuryWallet.address, treasurySplitRate);
         await paymentLinkProcessor.waitForDeployment();
 
         await tokenContract.grantRole(await tokenContract.MINTER_ROLE(), paymentLinkProcessor.target);
