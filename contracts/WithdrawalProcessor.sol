@@ -40,7 +40,6 @@ contract WithdrawalProcessor is AccessControl {
         eBRLContract = eReais(eBRLAddress);
         treasuryWallet = treasury;
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
-
     }
 
     function requestWithdrawal(
@@ -48,7 +47,7 @@ contract WithdrawalProcessor is AccessControl {
         address user,
         uint256 amount,
         uint256 fee
-    ) external {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(amount > 0, "Amount must be greater than zero");
         require(eBRLContract.balanceOf(user) >= amount, "Insufficient balance");
 
@@ -68,16 +67,16 @@ contract WithdrawalProcessor is AccessControl {
         WithdrawalRequest storage request = withdrawalRequests[requestId];
         require(request.status == Status.Pending, "Withdrawal not pending");
 
-        uint256 netAmount = request.amount - request.fee;
+        uint256 netAmount = request.amount + request.fee;
         require(netAmount > 0, "Net amount must be positive after fees");
         require(
-            eBRLContract.balanceOf(request.user) >= request.amount,
+            eBRLContract.balanceOf(request.user) >= netAmount,
             "Insufficient balance"
         );
 
         request.status = Status.Approved;
-        eBRLContract.redeem(request.user, netAmount);
         eBRLContract.issue(treasuryWallet, request.fee);
+        eBRLContract.redeem(request.user, netAmount);
 
         emit WithdrawalApproved(requestId, netAmount);
     }
