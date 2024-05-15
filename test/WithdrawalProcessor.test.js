@@ -75,7 +75,7 @@ describe("WithdrawalProcessor", function () {
             expect(await eReais.balanceOf(user.address)).to.equal(ethers.parseEther("10"));
         });
 
-        it.only("Should handle a large withdrawal correctly", async function () {
+        it("Should handle a large withdrawal correctly", async function () {
             const { withdrawalProcessor, owner, user, eReais, treasury } = await loadFixture(deployWithdrawalProcessorFixture);
         
             const totalAmount = BigInt("10000000000000000000000000");
