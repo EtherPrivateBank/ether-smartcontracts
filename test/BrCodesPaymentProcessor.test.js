@@ -16,8 +16,6 @@ describe("BrCodesPaymentProcessor", function () {
         const brCodesPaymentProcessor = await BrCodesPaymentProcessor.deploy(
             eReais.target,
             owner.address,
-            minter.address,
-            burner.address,
             treasuryWallet.address
         );
         await brCodesPaymentProcessor.waitForDeployment();
@@ -61,7 +59,7 @@ describe("BrCodesPaymentProcessor", function () {
 
 
             await expect(brCodesPaymentProcessor.connect(owner).registerPix(pixUuid, pixAmount, pixFee, pixTags, customer.address, pictureUrl));
-            await brCodesPaymentProcessor.connect(minter).processPixPayment(pixUuid);
+            await brCodesPaymentProcessor.connect(owner).processPixPayment(pixUuid);
 
             const customerBalance = await eReais.balanceOf(customer.address);
             const treasuryBalance = await eReais.balanceOf(treasuryWallet.address);

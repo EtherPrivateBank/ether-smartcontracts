@@ -45,15 +45,11 @@ contract BrCodesPaymentProcessor is AccessControl {
     constructor(
         address eBRLAddress,
         address defaultAdmin,
-        address minter,
-        address burner,
         address _treasuryWallet
     ) {
         eBRLContract = eReais(eBRLAddress);
         treasuryWallet = _treasuryWallet;
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
-        _grantRole(eBRLContract.MINTER_ROLE(), minter);
-        _grantRole(eBRLContract.BURNER_ROLE(), burner);
     }
 
     function registerPix(
@@ -79,7 +75,7 @@ contract BrCodesPaymentProcessor is AccessControl {
 
     function processPixPayment(
         string memory _id
-    ) external onlyRole(eBRLContract.MINTER_ROLE()) {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         Pix storage pix = pixTransactions[_id];
         require(
             pix.status == PixStatus.Created,
