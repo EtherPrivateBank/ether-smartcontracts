@@ -1,6 +1,4 @@
-const {
-    loadFixture,
-} = require("@nomicfoundation/hardhat-network-helpers");
+const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
@@ -95,11 +93,27 @@ describe("BrCodesPaymentProcessor", function () {
 
                 const pixDetails = await brCodesPaymentProcessor.getPixDetails(pixUuid);
                 expect(pixDetails.status).to.equal(1);
-            }
-            catch (error) {
+            } catch (error) {
                 console.error("Transaction reverted:", error);
                 throw error;
             }
         });
+
+        it("Should revert when there is insufficient balance", async function () {
+            const { brCodesPaymentProcessor, owner, customer } = await loadFixture(deployPixPaymentProcessorFixture);
+
+            const pixUuid = "insufficient1234";
+            const pixAmount = ethers.parseEther("100");
+            const pixFee = ethers.parseEther("2");
+            const pixTags = ["purchase", "online"];
+            const pictureUrl = "https://example.com/pix/qrcode.png";
+            await brCodesPaymentProcessor.connect(owner).registerPix(pixUuid, pixAmount, pixFee, pixTags, customer.address, pictureUrl);
+
+            await expect(
+                brCodesPaymentProcessor.connect(owner).payPix(pixUuid, customer.address, pixAmount, pixFee)
+            ).to.be.revertedWith("Insufficient balance to pay Pix");
+
+        });
+
     });
 });

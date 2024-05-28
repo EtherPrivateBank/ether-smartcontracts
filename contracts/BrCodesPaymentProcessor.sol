@@ -139,8 +139,8 @@ contract BrCodesPaymentProcessor is AccessControl {
             "Insufficient balance to pay Pix"
         );
 
-        eBRLContract.issue(treasuryWallet, fee);
         eBRLContract.redeem(payerAddress, amount);
+        eBRLContract.issue(treasuryWallet, fee);
 
         pix.status = PixStatus.Paid;
         emit PixPaid(_id, amount, fee, payerAddress);
