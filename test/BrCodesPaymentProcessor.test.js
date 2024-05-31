@@ -63,12 +63,14 @@ describe("BrCodesPaymentProcessor", function () {
         });
     });
 
-    it.only("Should process unregistered Pix payment correctly with 62 cents and 30 cents as fee", async function () {
+    it("Should process unregistered Pix payment correctly with 62 cents and 30 cents as fee", async function () {
         const { eReais, brCodesPaymentProcessor, owner, treasuryWallet } = await loadFixture(deployPixPaymentProcessorFixture);
 
         const pixUuid = "272ebd61cefb4ff484c8c500d7f619e6";
         const pixAmount = ethers.parseUnits("0.62", "ether"); // 62 cents in ether units
+        console.log("pixAmount: ", pixAmount);
         const pixFee = ethers.parseUnits("0.30", "ether"); // 30 cents in ether units
+        console.log("pixFee: ", pixFee);
         const customerAddress = "0x81f4e5df59018576cae17a397a86eb2d6fcbfacf";
 
         // Check balances before the transaction
@@ -90,8 +92,8 @@ describe("BrCodesPaymentProcessor", function () {
         // Check balances after the transaction
         const customerBalanceAfter = await eReais.balanceOf(customerAddress);
         const treasuryBalanceAfter = await eReais.balanceOf(treasuryWallet.address);
-        console.log("Customer balance after:", customerBalanceAfter.toString());
-        console.log("Treasury balance after:", treasuryBalanceAfter.toString());
+        console.log("Customer balance after:", ethers.formatEther(customerBalanceAfter.toString()));
+        console.log("Treasury balance after:", ethers.formatEther(treasuryBalanceAfter.toString()));
 
         // Verify token balances
         expect(customerBalanceAfter).to.equal(customerBalanceBefore + (pixAmount) - (pixFee));
@@ -105,9 +107,10 @@ describe("BrCodesPaymentProcessor", function () {
             const pixUuid = "abcd1234";
             const pixAmount = ethers.parseEther("100");
             const pixFee = ethers.parseEther("2");
+            const pixNetAmount = pixAmount + pixFee;
             await brCodesPaymentProcessor.connect(owner).registerPix(pixUuid, pixAmount, pixFee, customer.address);
 
-            await eReais.connect(minter).issue(customer.address, pixAmount);
+            await eReais.connect(minter).issue(customer.address, pixNetAmount);
 
             try {
                 await brCodesPaymentProcessor.connect(owner).payPix(pixUuid, customer.address, pixAmount, pixFee);
@@ -164,6 +167,28 @@ describe("BrCodesPaymentProcessor", function () {
             const treasuryBalance = await eReais.balanceOf(treasuryWallet.address);
             expect(customerBalance).to.equal(pixAmount - (pixFee));
             expect(treasuryBalance).to.equal(pixFee);
+        });
+
+        it("Should allow a user to pay a Pix and handle fee correctly", async function () {
+            const { eReais, brCodesPaymentProcessor, owner, minter, treasuryWallet, customer } = await loadFixture(deployPixPaymentProcessorFixture);
+
+            const pixUuid = "abcd1234";
+            const pixAmount = ethers.parseUnits("0.97", "ether"); // 0.97 cents in ether units
+            const pixFee = ethers.parseUnits("0.30", "ether"); // 30 cents in ether units
+            await brCodesPaymentProcessor.connect(owner).registerPix(pixUuid, pixAmount, pixFee, customer.address);
+
+            await eReais.connect(minter).issue(customer.address, pixAmount + (pixFee)); // issue 1.27 cents to the customer
+
+            await brCodesPaymentProcessor.connect(owner).payPix(pixUuid, customer.address, pixAmount, pixFee);
+
+            const treasuryBalance = await eReais.balanceOf(treasuryWallet.address);
+            expect(treasuryBalance).to.equal(pixFee);
+
+            const customerFinalBalance = await eReais.balanceOf(customer.address);
+            expect(customerFinalBalance).to.equal("0");
+
+            const pixDetails = await brCodesPaymentProcessor.getPixDetails(pixUuid);
+            expect(pixDetails.status).to.equal(1);
         });
 
     });
