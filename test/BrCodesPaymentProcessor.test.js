@@ -32,17 +32,13 @@ describe("BrCodesPaymentProcessor", function () {
             const pixUuid = "abcd1234";
             const pixAmount = ethers.parseUnits("100", "wei");
             const pixFee = ethers.parseUnits("2", "wei");
-            const pixTags = ["purchase", "online"];
-            const pictureUrl = "https://example.com/pix/qrcode.png";
-            await brCodesPaymentProcessor.connect(owner).registerPix(pixUuid, pixAmount, pixFee, pixTags, customer.address, pictureUrl);
+            await brCodesPaymentProcessor.connect(owner).registerPix(pixUuid, pixAmount, pixFee, customer.address);
 
             const pixDetails = await brCodesPaymentProcessor.getPixDetails(pixUuid);
             expect(pixDetails.id).to.equal(pixUuid);
             expect(pixDetails.amount).to.equal(pixAmount);
             expect(pixDetails.fee).to.equal(pixFee);
-            expect(pixDetails.tags).to.deep.equal(pixTags);
             expect(pixDetails.status).to.equal(0);
-            expect(pixDetails.pictureUrl).to.equal(pictureUrl);
         });
 
         it("Should process Pix payment and mint eBRL correctly", async function () {
@@ -52,11 +48,9 @@ describe("BrCodesPaymentProcessor", function () {
             const pixAmount = ethers.parseUnits("200", "wei");
             const pixFee = ethers.parseUnits("2", "wei");
             const netAmount = pixAmount - pixFee;
-            const pixTags = ["sale", "book"];
-            const pictureUrl = "https://example.com/pix/qrcode2.png";
 
 
-            await expect(brCodesPaymentProcessor.connect(owner).registerPix(pixUuid, pixAmount, pixFee, pixTags, customer.address, pictureUrl));
+            await expect(brCodesPaymentProcessor.connect(owner).registerPix(pixUuid, pixAmount, pixFee, customer.address));
             await brCodesPaymentProcessor.connect(owner).processPixPayment(pixUuid);
 
             const customerBalance = await eReais.balanceOf(customer.address);
@@ -76,9 +70,7 @@ describe("BrCodesPaymentProcessor", function () {
             const pixUuid = "abcd1234";
             const pixAmount = ethers.parseEther("100");
             const pixFee = ethers.parseEther("2");
-            const pixTags = ["purchase", "online"];
-            const pictureUrl = "https://example.com/pix/qrcode.png";
-            await brCodesPaymentProcessor.connect(owner).registerPix(pixUuid, pixAmount, pixFee, pixTags, customer.address, pictureUrl);
+            await brCodesPaymentProcessor.connect(owner).registerPix(pixUuid, pixAmount, pixFee, customer.address);
 
             await eReais.connect(minter).issue(customer.address, pixAmount);
 
@@ -105,9 +97,7 @@ describe("BrCodesPaymentProcessor", function () {
             const pixUuid = "insufficient1234";
             const pixAmount = ethers.parseEther("100");
             const pixFee = ethers.parseEther("2");
-            const pixTags = ["purchase", "online"];
-            const pictureUrl = "https://example.com/pix/qrcode.png";
-            await brCodesPaymentProcessor.connect(owner).registerPix(pixUuid, pixAmount, pixFee, pixTags, customer.address, pictureUrl);
+            await brCodesPaymentProcessor.connect(owner).registerPix(pixUuid, pixAmount, pixFee, customer.address);
 
             await expect(
                 brCodesPaymentProcessor.connect(owner).payPix(pixUuid, customer.address, pixAmount, pixFee)
@@ -121,20 +111,18 @@ describe("BrCodesPaymentProcessor", function () {
             const pixUuid = "abcd1234";
             const pixAmount = ethers.parseUnits("0.003", "ether"); // 0.3 cents in ether units
             const pixFee = ethers.parseUnits("0.003", "ether"); // 0.3 cents in ether units
-            const pixTags = ["purchase", "online"];
-            const pictureUrl = "https://example.com/pix/qrcode.png";
+            console.log("pixAmount: ", pixAmount);
+            console.log("pixFee: ", pixFee);
 
             // Process unregistered Pix payment
-            await brCodesPaymentProcessor.connect(owner).processUnregisteredPixPayment(pixUuid, pixAmount, pixFee, customer.address, pixTags, pictureUrl);
+            await brCodesPaymentProcessor.connect(owner).processUnregisteredPixPayment(pixUuid, pixAmount, pixFee, customer.address);
 
             // Verify Pix details
             const pixDetails = await brCodesPaymentProcessor.getPixDetails(pixUuid);
             expect(pixDetails.id).to.equal(pixUuid);
             expect(pixDetails.amount).to.equal(pixAmount);
             expect(pixDetails.fee).to.equal(pixFee);
-            expect(pixDetails.tags).to.deep.equal(pixTags);
             expect(pixDetails.status).to.equal(1); // Status should be Paid
-            expect(pixDetails.pictureUrl).to.equal(pictureUrl);
 
             // Verify token balances
             const customerBalance = await eReais.balanceOf(customer.address);

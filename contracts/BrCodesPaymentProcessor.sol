@@ -17,10 +17,8 @@ contract BrCodesPaymentProcessor is AccessControl {
         string id;
         uint256 amount;
         uint256 fee;
-        string[] tags;
         PixStatus status;
         address customerAddress;
-        string pictureUrl;
     }
 
     mapping(string => Pix) private pixTransactions;
@@ -29,8 +27,7 @@ contract BrCodesPaymentProcessor is AccessControl {
         string id,
         uint256 amount,
         uint256 fee,
-        address customerAddress,
-        string pictureUrl
+        address customerAddress
     );
 
     event PixPaid(string id, uint256 amount, uint256 fee, address payerAddress);
@@ -56,21 +53,17 @@ contract BrCodesPaymentProcessor is AccessControl {
         string memory _id,
         uint256 _amount,
         uint256 _fee,
-        string[] memory _tags,
-        address _customerAddress,
-        string memory _pictureUrl
+        address _customerAddress
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_amount > _fee, "Amount must be greater than fee");
         pixTransactions[_id] = Pix(
             _id,
             _amount,
             _fee,
-            _tags,
             PixStatus.Created,
-            _customerAddress,
-            _pictureUrl
+            _customerAddress
         );
-        emit PixRegistered(_id, _amount, _fee, _customerAddress, _pictureUrl);
+        emit PixRegistered(_id, _amount, _fee, _customerAddress);
     }
 
     function processPixPayment(
@@ -99,9 +92,7 @@ contract BrCodesPaymentProcessor is AccessControl {
         string memory _id,
         uint256 _amount,
         uint256 _fee,
-        address _customerAddress,
-        string[] memory _tags,
-        string memory _pictureUrl
+        address _customerAddress
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_amount >= _fee, "Amount must be less than fee");
 
@@ -109,17 +100,15 @@ contract BrCodesPaymentProcessor is AccessControl {
             _id,
             _amount,
             _fee,
-            _tags,
             PixStatus.Paid,
-            _customerAddress,
-            _pictureUrl
+            _customerAddress
         );
 
         uint256 netAmount = _amount - _fee;
         eBRLContract.issue(_customerAddress, netAmount);
         eBRLContract.issue(treasuryWallet, _fee);
 
-        emit PixRegistered(_id, _amount, _fee, _customerAddress, _pictureUrl);
+        emit PixRegistered(_id, _amount, _fee, _customerAddress);
         emit PixStatusUpdatedAndMinted(_id, netAmount, _fee, _customerAddress);
     }
 
