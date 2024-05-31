@@ -115,5 +115,33 @@ describe("BrCodesPaymentProcessor", function () {
 
         });
 
+        it("Should process unregistered Pix payment correctly with 0.3 cents", async function () {
+            const { eReais, brCodesPaymentProcessor, owner, customer, treasuryWallet } = await loadFixture(deployPixPaymentProcessorFixture);
+
+            const pixUuid = "abcd1234";
+            const pixAmount = ethers.parseUnits("0.003", "ether"); // 0.3 cents in ether units
+            const pixFee = ethers.parseUnits("0.003", "ether"); // 0.3 cents in ether units
+            const pixTags = ["purchase", "online"];
+            const pictureUrl = "https://example.com/pix/qrcode.png";
+
+            // Process unregistered Pix payment
+            await brCodesPaymentProcessor.connect(owner).processUnregisteredPixPayment(pixUuid, pixAmount, pixFee, customer.address, pixTags, pictureUrl);
+
+            // Verify Pix details
+            const pixDetails = await brCodesPaymentProcessor.getPixDetails(pixUuid);
+            expect(pixDetails.id).to.equal(pixUuid);
+            expect(pixDetails.amount).to.equal(pixAmount);
+            expect(pixDetails.fee).to.equal(pixFee);
+            expect(pixDetails.tags).to.deep.equal(pixTags);
+            expect(pixDetails.status).to.equal(1); // Status should be Paid
+            expect(pixDetails.pictureUrl).to.equal(pictureUrl);
+
+            // Verify token balances
+            const customerBalance = await eReais.balanceOf(customer.address);
+            const treasuryBalance = await eReais.balanceOf(treasuryWallet.address);
+            expect(customerBalance).to.equal(pixAmount - (pixFee));
+            expect(treasuryBalance).to.equal(pixFee);
+        });
+
     });
 });

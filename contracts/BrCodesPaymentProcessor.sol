@@ -103,7 +103,7 @@ contract BrCodesPaymentProcessor is AccessControl {
         string[] memory _tags,
         string memory _pictureUrl
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_amount > _fee, "Amount must be less than fee");
+        require(_amount >= _fee, "Amount must be less than fee");
 
         pixTransactions[_id] = Pix(
             _id,
