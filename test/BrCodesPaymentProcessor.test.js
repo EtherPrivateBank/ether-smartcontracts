@@ -191,5 +191,20 @@ describe("BrCodesPaymentProcessor", function () {
             expect(pixDetails.status).to.equal(1);
         });
 
+        it("Should revert processing unregistered Pix payment if already paid", async function () {
+            const { brCodesPaymentProcessor, owner, customer } = await loadFixture(deployPixPaymentProcessorFixture);
+
+            const pixUuid = "abcd1234";
+            const pixAmount = ethers.parseUnits("100", "wei");
+            const pixFee = ethers.parseUnits("2", "wei");
+            const customerAddress = customer.address;
+
+            await brCodesPaymentProcessor.connect(owner).processUnregisteredPixPayment(pixUuid, pixAmount, pixFee, customerAddress);
+
+            await expect(
+                brCodesPaymentProcessor.connect(owner).processUnregisteredPixPayment(pixUuid, pixAmount, pixFee, customerAddress)
+            ).to.be.revertedWith("Pix is already paid");
+        });
+
     });
 });

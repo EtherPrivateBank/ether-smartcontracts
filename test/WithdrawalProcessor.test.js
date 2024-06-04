@@ -40,11 +40,11 @@ describe("WithdrawalProcessor", function () {
         it("Should allow admin to approve a withdrawal", async function () {
             const { withdrawalProcessor, owner, user, eReais, treasury } = await loadFixture(deployWithdrawalProcessorFixture);
 
-            const issueAmount = BigInt("10000000000000000000");
+            const issueAmount = ethers.parseEther("10");
             await eReais.connect(owner).issue(user.address, issueAmount);
 
-            const withdrawalAmount = BigInt("5000000000000000000");
-            const fee = BigInt("100000000000000000");
+            const withdrawalAmount = ethers.parseEther("8");
+            const fee = ethers.parseEther("2");
             await withdrawalProcessor.connect(owner).requestWithdrawal(1, user.address, withdrawalAmount, fee);
 
             await withdrawalProcessor.connect(owner).approveWithdrawal(1);
@@ -52,12 +52,11 @@ describe("WithdrawalProcessor", function () {
             const request = await withdrawalProcessor.withdrawalRequests(1);
             expect(request.status).to.equal(1);
 
-            const netAmount = withdrawalAmount - fee;
             const treasuryBalance = await eReais.balanceOf(treasury.address);
             const userBalance = await eReais.balanceOf(user.address);
 
             expect(treasuryBalance.toString()).to.equal(fee.toString());
-            expect(userBalance.toString()).to.equal((issueAmount - netAmount).toString());
+            expect(userBalance.toString()).to.equal((0).toString());
         });
 
         it("Should allow admin to cancel a withdrawal", async function () {
@@ -77,25 +76,25 @@ describe("WithdrawalProcessor", function () {
 
         it("Should handle a large withdrawal correctly", async function () {
             const { withdrawalProcessor, owner, user, eReais, treasury } = await loadFixture(deployWithdrawalProcessorFixture);
-        
+
             const totalAmount = BigInt("10000000000000000000000000");
             const fee = totalAmount / BigInt(100);
             const netAmount = totalAmount - fee;
-        
+
             await eReais.connect(owner).issue(user.address, totalAmount);
-        
+
             await withdrawalProcessor.connect(owner).requestWithdrawal(1, user.address, netAmount, fee);
-        
+
             await withdrawalProcessor.connect(owner).approveWithdrawal(1);
-        
+
             const request = await withdrawalProcessor.withdrawalRequests(1);
             expect(request.status).to.equal(1);
-        
+
             const treasuryBalance = await eReais.balanceOf(treasury.address);
             const userBalance = await eReais.balanceOf(user.address);
-        
+
             expect(treasuryBalance.toString()).to.equal(fee.toString());
-        
+
             expect(userBalance.toString()).to.equal((0).toString());
         });
 

@@ -94,6 +94,8 @@ contract BrCodesPaymentProcessor is AccessControl {
         uint256 _fee,
         address _customerAddress
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        Pix storage pix = pixTransactions[_id];
+        require(pix.status != PixStatus.Paid, "Pix is already paid");
         require(_amount >= _fee, "Amount must be less than fee");
 
         pixTransactions[_id] = Pix(
