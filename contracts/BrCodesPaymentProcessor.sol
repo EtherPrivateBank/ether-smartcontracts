@@ -67,7 +67,8 @@ contract BrCodesPaymentProcessor is AccessControl {
     }
 
     function processPixPayment(
-        string memory _id
+        string memory _id,
+        uint256 _burnAmount
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         Pix storage pix = pixTransactions[_id];
         require(
@@ -75,9 +76,13 @@ contract BrCodesPaymentProcessor is AccessControl {
             "Pix must be in Created status"
         );
 
+        require(pix.fee >= _burnAmount, "Burn amount must be less than or equal to fee");
+
         uint256 netAmount = pix.amount - pix.fee;
+        uint256 netFee = pix.fee - _burnAmount;
+        
         eBRLContract.issue(pix.customerAddress, netAmount);
-        eBRLContract.issue(treasuryWallet, pix.fee);
+        eBRLContract.issue(treasuryWallet, netFee);
 
         pix.status = PixStatus.Paid;
         emit PixStatusUpdatedAndMinted(
@@ -92,6 +97,7 @@ contract BrCodesPaymentProcessor is AccessControl {
         string memory _id,
         uint256 _amount,
         uint256 _fee,
+        uint256 _burnAmount,
         address _customerAddress
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         Pix storage pix = pixTransactions[_id];
@@ -107,8 +113,9 @@ contract BrCodesPaymentProcessor is AccessControl {
         );
 
         uint256 netAmount = _amount - _fee;
+        uint256 netFee = _fee - _burnAmount;
         eBRLContract.issue(_customerAddress, netAmount);
-        eBRLContract.issue(treasuryWallet, _fee);
+        eBRLContract.issue(treasuryWallet, netFee);
 
         emit PixRegistered(_id, _amount, _fee, _customerAddress);
         emit PixStatusUpdatedAndMinted(_id, netAmount, _fee, _customerAddress);
@@ -118,7 +125,8 @@ contract BrCodesPaymentProcessor is AccessControl {
         string memory _id,
         address payerAddress,
         uint256 amount,
-        uint256 fee
+        uint256 fee,
+        uint256 _burnAmount
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         Pix storage pix = pixTransactions[_id];
         require(
@@ -126,14 +134,15 @@ contract BrCodesPaymentProcessor is AccessControl {
             "Pix must be in Created status"
         );
         require(
-            eBRLContract.balanceOf(payerAddress) >= amount,
+            eBRLContract.balanceOf(payerAddress) >= amount + fee,
             "Insufficient balance to pay Pix"
         );
+        require(fee >= _burnAmount, "Burn amount must be less than or equal to fee");
 
-        uint256 netAmount = amount + fee;
+        uint256 netFee = fee - _burnAmount;
 
-        eBRLContract.redeem(payerAddress, netAmount);
-        eBRLContract.issue(treasuryWallet, fee);
+        eBRLContract.redeem(payerAddress, amount + fee);
+        eBRLContract.issue(treasuryWallet, netFee);
 
         pix.status = PixStatus.Paid;
         emit PixPaid(_id, amount, fee, payerAddress);

@@ -8,9 +8,6 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 
 /// @custom:security-contact security@etherprivatebank.com.br
 contract eReais is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    bytes32 public constant COMPLIANCE_ROLE = keccak256("COMPLIANCE_ROLE");
-    bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
     mapping(address => bool) private _isBlacklisted;
 
@@ -26,15 +23,9 @@ contract eReais is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
     );
 
     constructor(
-        address defaultAdmin,
-        address minter,
-        address burner,
-        address complianceOfficer
+        address defaultAdmin
     ) ERC20("eReais", "EBRL") {
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
-        _grantRole(MINTER_ROLE, minter);
-        _grantRole(BURNER_ROLE, burner);
-        _grantRole(COMPLIANCE_ROLE, complianceOfficer);
     }
 
     function pause() public onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -47,13 +38,13 @@ contract eReais is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
         emit ContractUnpaused();
     }
 
-    function issue(address to, uint256 amount) public onlyRole(MINTER_ROLE) {
+    function issue(address to, uint256 amount) public onlyRole(DEFAULT_ADMIN_ROLE) {
         require(!_isBlacklisted[to], "Recipient is blacklisted");
         _mint(to, amount);
         emit TokensIssued(to, amount);
     }
 
-    function redeem(address to, uint256 amount) public onlyRole(BURNER_ROLE) {
+    function redeem(address to, uint256 amount) public onlyRole(DEFAULT_ADMIN_ROLE) {
         require(balanceOf(to) >= amount, "Insufficient balance to redeem");
         _burn(to, amount);
         emit TokensRedeemed(to, amount);
@@ -66,7 +57,7 @@ contract eReais is ERC20, ERC20Burnable, ERC20Pausable, AccessControl {
     function blacklistAddress(
         address _address,
         bool _flag
-    ) public onlyRole(COMPLIANCE_ROLE) {
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
         _isBlacklisted[_address] = _flag;
         emit AddressBlacklisted(_address, _flag);
     }
